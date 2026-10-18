@@ -2,6 +2,7 @@
 require('dotenv').config();
 
 const { Telegraf, Markup, Scenes, session } = require('telegraf');
+const express = require('express');
 const db = require('./database');
 
 const token = process.env.BOT_TOKEN;
@@ -877,16 +878,30 @@ bot.action(/^fav_(.+)$/, async (ctx) => {
 // BOTNI ISHGA TUSHIRISH
 // ===============================
 
-bot.launch()
-    .then(() => {
-        console.log('✅ Kino bot muvaffaqiyatli ishga tushdi!');
-        console.log(`📢 Kanal: ${channelUsername}`);
-        console.log(`🤖 Bot: @${botUsername}`);
-    })
-    .catch((err) => {
-        console.error('❌ Botni ishga tushirib bo‘lmadi:', err.message);
-        process.exit(1);
-    });
+const app = express();
+const PORT = process.env.PORT || 3000;
+const webhookPath = '/telegram-webhook';
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+app.use(express.json());
+
+app.use(bot.webhookCallback(webhookPath));
+
+app.get('/', (req, res) => {
+  res.send('Kino bot serveri ishlayapti!');
+});
+
+app.listen(PORT, async () => {
+  try {
+    const url = process.env.RENDER_EXTERNAL_URL;
+
+    if (!url) {
+      throw new Error('RENDER_EXTERNAL_URL topilmadi');
+    }
+
+    await bot.telegram.setWebhook(`${url}${webhookPath}`);
+    console.log('✅ Kino bot webhook orqali ishga tushdi!');
+    console.log(`🌐 Server porti: ${PORT}`);
+  } catch (err) {
+    console.error('❌ Webhook xatosi:', err.message);
+  }
+});
